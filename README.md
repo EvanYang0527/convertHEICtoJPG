@@ -1,60 +1,95 @@
-# HEIC to JPG Converter
+# HEIC to JPG Full-Stack Converter
 
-A minimal full-stack project that lets users upload a `.heic` image and
-instantly receive a converted `.jpg` version. The Express backend exposes an
-upload endpoint that performs the conversion with [`sharp`](https://sharp.pixelplumbing.com/), while the bundled single-page front-end provides a friendly user interface for the workflow.
+This project provides a production-ready Node.js full-stack application that converts HEIC images to JPG format by delegating the work to command-line tools such as ImageMagick or `heif-convert`. The app exposes both an interactive web interface and a reusable command-line utility.
 
-## Project structure
+## Features
 
-```
-convertHEICtoJPG/
-├── backend/
-│   ├── package.json        # Node.js metadata and dependency list
-│   ├── src/
-│   │   └── server.js       # Express application with the conversion endpoint
-│   └── static/             # Front-end assets served by the API
-│       ├── assets/
-│       │   ├── script.js
-│       │   └── styles.css
-│       └── index.html
-└── README.md
-```
+- 🌐 **Web UI**: Upload HEIC files from the browser and download the converted JPG image.
+- ⚙️ **Command-line workflow**: Conversion is performed through external binaries (`magick`, `convert`, or `heif-convert`) ensuring consistent results with native tooling.
+- 🧰 **Reusable service layer**: Shared conversion logic powers both the web API and the CLI utility.
+- 🧹 **Automatic cleanup**: Temporary uploads are removed after each conversion to keep disk usage low.
 
-## Getting started
+## Prerequisites
 
-1. **Install dependencies**:
+Install at least one of the following command-line tools on the host operating system:
+
+- [ImageMagick](https://imagemagick.org) (`magick` or `convert` command)
+- [`heif-convert`](https://github.com/strukturag/libheif)
+
+The application automatically detects which tool is available at runtime.
+
+## Getting Started
+
+1. **Install dependencies**
 
    ```bash
-   cd backend
    npm install
    ```
 
-2. **Run the development server**:
+2. **Run in development mode**
+
+   ```bash
+   npm run dev
+   ```
+
+   The server starts on [http://localhost:3000](http://localhost:3000) and serves the front-end directly.
+
+3. **Start in production mode**
 
    ```bash
    npm start
    ```
 
-   The server listens on port `8000` by default. Override it with the `PORT`
-   environment variable if needed.
+## Command-line Conversion
 
-3. **Open the application** at <http://localhost:8000> and upload a `.heic` file.
+Use the bundled script to convert one or many HEIC files without starting the server:
 
-## How it works
+```bash
+npm run convert -- --input ./path/to/image.heic --output ./path/to/output.jpg
+```
 
-- The front-end submits the selected HEIC file via `fetch` to `POST /api/convert`.
-- The backend validates the file, decodes it, and streams a JPEG response back to
-  the browser using `sharp`.
-- The browser shows a preview and provides a direct download link using the
-  returned `Content-Disposition` header.
+Convert an entire directory recursively:
 
-## Notes
+```bash
+npm run convert -- --input ./photos --output ./converted
+```
 
-- Only HEIC/HEIF files are accepted. Uploading any other format will return a 400
-  error with a helpful message.
-- The conversion quality is set to 90 to balance fidelity and file size, and can
-  be tweaked in `backend/src/server.js`.
-- Because the API returns the JPEG bytes directly, no converted files are stored
-  on disk.
-- Ensure the host environment provides `libvips` with `libheif` support so that
-  `sharp` can decode HEIC images.
+The CLI mirrors the same detection logic used by the API and reports missing tool dependencies with actionable guidance.
+
+## Project Structure
+
+```
+├── package.json
+├── public
+│   ├── app.js
+│   ├── index.html
+│   └── styles.css
+├── scripts
+│   └── convert-heic.mjs
+└── src
+    └── server
+        ├── index.js
+        ├── routes
+        │   └── convert.js
+        └── services
+            ├── cli-runner.js
+            └── converter.js
+```
+
+## Testing the API
+
+The API exposes a single endpoint:
+
+- `POST /api/convert` — Multipart form-data with field name `file`. Returns JSON containing a download URL for the JPG file.
+
+Use `curl` to test from the command line:
+
+```bash
+curl -F "file=@/path/to/image.heic" http://localhost:3000/api/convert --output response.json
+```
+
+The JSON payload includes `downloadUrl` which points to the converted JPG file.
+
+## License
+
+MIT
