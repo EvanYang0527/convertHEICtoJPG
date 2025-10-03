@@ -1,0 +1,29 @@
+{
+  "name": "heic-to-jpg-fullstack",
+  "version": "1.0.0",
+  "description": "Full-stack Node.js application for converting HEIC images to JPG using command-line tools.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server/index.js",
+    "dev": "nodemon --watch src/server src/server/index.js",
+    "convert": "node scripts/convert-heic.mjs"
+  },
+  "keywords": [
+    "heic",
+    "jpg",
+    "converter",
+    "express",
+    "fullstack"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HEIC to JPG Converter</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header>
+        <h1>HEIC ➜ JPG Converter</h1>
+        <p>Upload a HEIC image and download the converted JPG powered by native command-line tools.</p>
+      </header>
+      <section class="card">
+        <form id="upload-form">
+          <label class="file-input">
+            <span>Select HEIC file</span>
+            <input id="file-input" type="file" name="file" accept=".heic" required />
+          </label>
+          <button type="submit">Convert</button>
+        </form>
+        <div id="status" role="status"></div>
+        <div id="result" class="hidden">
+          <p class="success">Conversion complete!</p>
+          <a id="download-link" href="#" download>Download JPG</a>
+          <p class="meta" id="tool-info"></p>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
