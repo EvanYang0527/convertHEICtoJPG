@@ -7,11 +7,12 @@ from uuid import uuid4
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from PIL import Image
-from pillow_heif import register_heif_opener
+from pillow_heif import register_avif_opener, register_heif_opener
 from werkzeug.utils import secure_filename
 
-# Enable HEIC/HEIF support for Pillow
+# Enable HEIC/HEIF/AVIF support for Pillow
 register_heif_opener()
+register_avif_opener()
 
 BASE_DIR: Final[Path] = Path(__file__).parent.resolve()
 UPLOAD_DIR: Final[Path] = BASE_DIR / "uploads"
@@ -22,7 +23,7 @@ CONVERTED_DIR.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB upload limit
-ALLOWED_EXTENSIONS: Final[set[str]] = {".heic", ".heif"}
+ALLOWED_EXTENSIONS: Final[set[str]] = {".heic", ".heif", ".avif"}
 
 
 def allowed_file(filename: str) -> bool:
@@ -45,7 +46,11 @@ def upload_image():
 
     if not allowed_file(upload.filename):
         return (
-            jsonify({"error": "Unsupported file type. Please upload a HEIC/HEIF image."}),
+            jsonify(
+                {
+                    "error": "Unsupported file type. Please upload a HEIC/HEIF/AVIF image.",
+                }
+            ),
             400,
         )
 
@@ -62,7 +67,17 @@ def upload_image():
             rgb_image.save(output_path, format="JPEG", quality=95)
     except Exception as exc:  # pragma: no cover - defensive programming
         temp_path.unlink(missing_ok=True)
-        return jsonify({"error": f"Failed to convert image: {exc}"}), 500
+
+        message = str(exc)
+        if "No decoding plugin installed" in message:
+            user_message = (
+                "This image uses a compression codec that is not available on the "
+                "server. Please try uploading the photo again after converting it to a "
+                "standard HEIC/AVIF file."
+            )
+            return jsonify({"error": user_message}), 415
+
+        return jsonify({"error": f"Failed to convert image: {message}"}), 500
 
     return jsonify({
         "message": "Image converted successfully.",

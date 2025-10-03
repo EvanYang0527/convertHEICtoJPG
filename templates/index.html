@@ -11,14 +11,20 @@
     <main class="container">
       <h1>HEIC to JPG Converter</h1>
       <p>
-        Upload your <strong>.heic</strong> or <strong>.heif</strong> image and we will
-        convert it to a JPEG file you can download right away.
+        Upload your <strong>.heic</strong>, <strong>.heif</strong>, or <strong>.avif</strong>
+        image and we will convert it to a JPEG file you can download right away.
       </p>
 
       <form id="upload-form">
         <label class="file-input">
-          <span>Select a HEIC image</span>
-          <input type="file" name="image" id="image" accept=".heic,.heif" required />
+          <span>Select a HEIC/AVIF image</span>
+          <input
+            type="file"
+            name="image"
+            id="image"
+            accept=".heic,.heif,.avif"
+            required
+          />
         </label>
         <button type="submit">Convert</button>
       </form>
