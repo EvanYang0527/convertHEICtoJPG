@@ -6,7 +6,7 @@ from typing import Final
 from uuid import uuid4
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from pillow_heif import register_heif_opener
 from werkzeug.utils import secure_filename
 
@@ -27,6 +27,67 @@ ALLOWED_EXTENSIONS: Final[set[str]] = {".heic", ".heif"}
 
 def allowed_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in ALLOWED_EXTENSIONS
+
+
+def load_heif_as_rgb(image_path: Path) -> Image.Image:
+    """Load a HEIF image and return it as an RGB Pillow image.
+
+    The default Pillow opener (backed by pillow-heif) handles the majority of
+    cases. Some HEIF files, however, rely on codecs that are not bundled with
+    the wheel and trigger ``"No decoding plugin installed"`` errors. When that
+    happens we fall back to ``imagecodecs`` which ships its own decoder.
+    """
+
+    try:
+        with Image.open(image_path) as pil_image:
+            return pil_image.convert("RGB")
+    except (UnidentifiedImageError, OSError) as pil_error:
+        try:
+            from imagecodecs import heif_decode  # type: ignore
+        except Exception as import_error:  # pragma: no cover - import guard
+            raise RuntimeError(
+                "Unable to decode HEIF image: pillow-heif failed and the "
+                "imagecodecs fallback is unavailable."
+            ) from pil_error
+
+        image_bytes = image_path.read_bytes()
+
+        try:
+            decoded, info = heif_decode(image_bytes, return_info=True)
+        except Exception as decode_error:  # pragma: no cover - defensive
+            raise RuntimeError(
+                "Unable to decode HEIF image with the imagecodecs fallback."
+            ) from decode_error
+
+        mode = info.get("mode") if isinstance(info, dict) else None
+        if isinstance(mode, str) and ";" in mode:
+            mode = mode.split(";", 1)[0]
+        if mode is None:
+            mode = _guess_mode(decoded)
+
+        pil_image = Image.fromarray(decoded, mode=mode)
+        if pil_image.mode != "RGB":
+            pil_image = pil_image.convert("RGB")
+        return pil_image
+
+
+def _guess_mode(array) -> str:
+    try:
+        ndim = array.ndim
+        shape = array.shape
+    except AttributeError as exc:  # pragma: no cover - sanity check
+        raise RuntimeError("Unsupported decoded image format.") from exc
+
+    if ndim == 2:
+        return "L"
+    if ndim == 3:
+        channels = shape[2]
+        if channels == 3:
+            return "RGB"
+        if channels == 4:
+            return "RGBA"
+
+    raise RuntimeError("Unsupported HEIF pixel layout.")
 
 
 @app.route("/")
@@ -54,15 +115,20 @@ def upload_image():
     temp_path = UPLOAD_DIR / unique_name
     upload.save(temp_path)
 
+    rgb_image: Image.Image | None = None
     try:
-        with Image.open(temp_path) as img:
-            rgb_image = img.convert("RGB")
-            output_name = f"{temp_path.stem}.jpg"
-            output_path = CONVERTED_DIR / output_name
-            rgb_image.save(output_path, format="JPEG", quality=95)
+        rgb_image = load_heif_as_rgb(temp_path)
+        output_name = f"{temp_path.stem}.jpg"
+        output_path = CONVERTED_DIR / output_name
+        rgb_image.save(output_path, format="JPEG", quality=95)
     except Exception as exc:  # pragma: no cover - defensive programming
         temp_path.unlink(missing_ok=True)
+        if rgb_image is not None:
+            rgb_image.close()
         return jsonify({"error": f"Failed to convert image: {exc}"}), 500
+    finally:
+        if rgb_image is not None:
+            rgb_image.close()
 
     return jsonify({
         "message": "Image converted successfully.",
